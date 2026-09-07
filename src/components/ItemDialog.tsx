@@ -40,7 +40,7 @@ export function ItemDialog({ item, editing, onSave, onClose }: {
     finally { setBusy(false); }
   }
 
-  return <Modal title={editing ? '编辑启动项' : '添加启动项'} subtitle="把常用的程序与服务放在一起，随时启动。" onClose={onClose} busy={busy}>
+  return <Modal title={editing ? '编辑启动项' : '添加启动项'} onClose={onClose} busy={busy}>
     <form onSubmit={event => void submit(event)}>
       <div className="modal-body">
         <fieldset disabled={busy} className="form-fields">

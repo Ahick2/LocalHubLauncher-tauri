@@ -32,7 +32,7 @@ export function SettingsDialog({ snapshot, onSave, onClose, onOpenDirectory }: {
     catch (reason) { setError(errorMessage(reason)); }
     finally { setBusy(false); }
   }
-  return <Modal title="启动器设置" subtitle="按你的习惯，安排启动与窗口行为。" onClose={onClose} busy={busy}>
+  return <Modal title="启动器设置" onClose={onClose} busy={busy}>
     <form onSubmit={event => void submit(event)}>
       <div className="modal-body">
         <div className="settings-card">

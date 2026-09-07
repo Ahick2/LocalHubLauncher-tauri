@@ -11,11 +11,11 @@ import { Modal } from './components/Modal';
 import { ServiceTable } from './components/ServiceTable';
 import { SettingsDialog } from './components/SettingsDialog';
 
-const pages: Record<View, { title: string; description: string; icon: IconName }> = {
-  all: { title: '全部启动项', description: '让每一个本地服务，都井然有序。', icon: 'grid' },
-  running: { title: '正在运行', description: '关注正在工作的服务，随时掌握运行状态。', icon: 'activity' },
-  auto: { title: '自动启动', description: '打开 Local Hub，让常用服务依次就绪。', icon: 'bolt' },
-  logs: { title: '服务日志', description: '每一次输出，都有迹可循。', icon: 'terminal' },
+const pages: Record<View, { title: string; icon: IconName }> = {
+  all: { title: '全部启动项', icon: 'grid' },
+  running: { title: '正在运行', icon: 'activity' },
+  auto: { title: '自动启动', icon: 'bolt' },
+  logs: { title: '服务日志', icon: 'terminal' },
 };
 interface Editor { item: LaunchItem; editing: boolean; remaining: LaunchItem[] }
 interface Confirmation { title: string; message: string; label: string; run: () => Promise<void> }
@@ -216,7 +216,7 @@ export default function App() {
       </div>
     </aside>
     <main className="workspace">
-      <header className="page-header"><div><div className="eyebrow">LOCAL WORKSPACE</div><h1>{pages[view].title}</h1><p>{pages[view].description}</p></div>
+      <header className="page-header"><div><div className="eyebrow">LOCAL WORKSPACE</div><h1>{pages[view].title}</h1></div>
         <div className="header-actions">{snapshot.autoStarting && <span className="auto-progress"><i />正在依次启动</span>}
           {view !== 'logs' && <label className="search-box main-search"><Icon name="search" size={17} /><input aria-label="搜索启动项" value={search} placeholder="搜索名称、分类或命令"
             onChange={event => setSearch(event.target.value)} />{search && <button className="icon-button" aria-label="清除搜索" onClick={() => setSearch('')}><Icon name="close" size={14} /></button>}</label>}

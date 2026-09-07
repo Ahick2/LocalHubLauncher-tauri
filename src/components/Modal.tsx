@@ -1,8 +1,8 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Icon } from './Icon';
 
-export function Modal({ title, subtitle, children, onClose, busy = false, className = '' }: {
-  title: string; subtitle?: string; children: ReactNode; onClose: () => void; busy?: boolean; className?: string;
+export function Modal({ title, children, onClose, busy = false, className = '' }: {
+  title: string; children: ReactNode; onClose: () => void; busy?: boolean; className?: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -13,7 +13,7 @@ export function Modal({ title, subtitle, children, onClose, busy = false, classN
   return <dialog ref={dialog} className={'modal ' + className} aria-labelledby="modal-title"
     onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
     <header className="modal-heading">
-      <div><h2 id="modal-title">{title}</h2>{subtitle && <p>{subtitle}</p>}</div>
+      <h2 id="modal-title">{title}</h2>
       <button type="button" className="icon-button" aria-label="关闭对话框" onClick={onClose} disabled={busy}><Icon name="close" /></button>
     </header>
     {children}
