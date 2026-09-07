@@ -1,0 +1,48 @@
+.modal { margin: auto; color: #e5e8f1; background: #1d2230; border: 1px solid #434a5e; border-radius: 15px; padding: 25px 27px 0; width: min(650px, calc(100vw - 48px)); max-height: calc(100dvh - 40px); box-shadow: 0 24px 100px #0009; }
+.modal[open] { display: flex; flex-direction: column; overflow: hidden; }
+.modal > form { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.modal-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 5px; }
+.modal::backdrop { background: #070a139c; backdrop-filter: blur(3px); }
+.modal-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 23px; flex-shrink: 0; }
+.modal-heading h2 { font-size: 20px; font-weight: 600; letter-spacing: -.3px; margin: 0 0 7px; }
+.modal-heading p { font-size: 11px; color: #7e8ca6; margin: 0; }
+.modal-heading .icon-button { margin-top: -4px; margin-right: -7px; }
+.form-fields { margin: 0; padding: 0; border: 0; min-width: 0; }
+.two-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.field { display: block; font-size: 11px; color: #a0adc4; margin-bottom: 15px; line-height: 1.4; }
+.required { color: #a392e8; }
+.field input, .field select, .field textarea { display: block; width: 100%; margin-top: 7px; border: 1px solid #343d51; border-radius: 7px; color: #d3dbeb; background: #161c28; padding: 9px 11px; min-height: 36px; font-size: 12px; }
+.field input::placeholder, .field textarea::placeholder { color: #5e6b83; }
+.field textarea { font-family: "Cascadia Mono", Consolas, "Microsoft YaHei UI", monospace; resize: vertical; min-height: 61px; max-height: 160px; line-height: 1.6; }
+.field select { cursor: pointer; padding-right: 24px; }
+.field select option { color: #d3dbeb; background: #242c3c; }
+.field-hint { display: block; color: #707f9b; font-size: 10px; line-height: 1.6; margin-top: 6px; }
+.input-with-button { display: flex; align-items: stretch; gap: 7px; }
+.input-with-button input, .input-with-button textarea { flex: 1; min-width: 0; }
+.browse-button { width: 39px; flex-shrink: 0; margin-top: 7px; padding: 0 !important; }
+.item-options { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 19px 0 8px; border-top: 1px solid #303a4d; padding-top: 17px; }
+.item-options > label { display: flex; align-items: center; gap: 6px; color: #a0acc2; font-size: 10px; }
+.enable-option { display: flex; align-items: center; gap: 9px; font-size: 10px; margin-left: auto; color: #8c9ab5; }
+.switch { display: inline-flex; align-items: center; border: 1px solid #44506a; background: #303b50; border-radius: 20px; width: 34px; height: 19px; padding: 2px; flex-shrink: 0; transition: background .15s; }
+.switch > span { display: inline-block; width: 13px; height: 13px; background: #91a0b9; border-radius: 50%; transition: transform .15s; }
+.switch.checked { background: #8975ed; border-color: #a695ff; } .switch.checked > span { background: white; transform: translateX(14px); }
+.modal-footer { display: flex; justify-content: flex-end; gap: 9px; padding: 20px 0 24px; margin-top: 8px; flex-shrink: 0; }
+.modal-footer .button { min-width: 76px; }
+.form-error { display: flex; align-items: flex-start; gap: 8px; color: #ef9dad; background: #cb637713; padding: 11px 12px; border-radius: 7px; border: 1px solid #d7798e32; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; font-size: 11px; }
+.form-error .icon { margin-top: 2px; }
+.settings-card { padding: 17px 18px; border-radius: 10px; border: 1px solid #303a4f; background: #19202d; margin-bottom: 12px; }
+.settings-card h3 { color: #8d9bb6; font-size: 10px; font-weight: 500; letter-spacing: 1px; margin: 0 0 18px; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.setting-row + .setting-row { margin-top: 20px; }
+.setting-row strong { font-size: 12px; font-weight: 500; color: #cad3e6; }
+.setting-row p { color: #7586a3; font-size: 10px; margin: 5px 0 0; line-height: 1.6; }
+.interval-control { display: flex; align-items: center; gap: 8px; font-size: 10px; color: #899ab5; }
+.interval-control input { width: 90px; border: 1px solid #3d4860; border-radius: 6px; color: #c1cfe6; background: #151c28; padding: 7px 8px; }
+.config-location { display: flex; align-items: center; gap: 11px; color: #6e819e; padding: 9px 3px 2px; }
+.config-location > div { flex: 1; min-width: 0; }
+.config-location span { font-size: 10px; display: block; }
+.config-location code { display: block; font-size: 9px; color: #60728f; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.confirmation-modal { width: min(455px, calc(100vw - 48px)); }
+.confirmation-body { display: flex; align-items: flex-start; gap: 15px; padding: 4px 0; }
+.confirmation-body p { margin: 0; font-size: 12px; color: #a6b3cc; line-height: 1.9; white-space: pre-wrap; }
+.confirmation-icon { display: grid; place-items: center; padding: 9px; color: #dd9b80; background: #bc76591a; border-radius: 12px; flex-shrink: 0; }

@@ -1,0 +1,18 @@
+# Frontend dependencies and build output
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Rust / Tauri output and local dependency caches
+src-tauri/target/
+src-tauri/gen/
+.cache/
+
+# Local verification artifacts
+playwright-report/
+test-results/
+
+# Portable application data
+/config.json
+/config.json.tmp
+/config.json.broken-*
