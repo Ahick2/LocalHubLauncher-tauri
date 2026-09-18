@@ -1,6 +1,6 @@
 # Local Hub · Tauri 2
 
-面向 Windows 的本地服务控制中心。使用 React、TypeScript 和 Vite 构建界面，Rust 负责配置、进程、日志与托盘。原 WinForms 项目保留在上一级目录，两个项目独立构建。
+面向 Windows 的本地服务控制中心。使用 React、TypeScript 和 Vite 构建界面，Rust 负责配置、进程、日志与托盘。
 
 ## 功能
 
@@ -98,7 +98,6 @@ npm run test:desktop
 
 该脚本会打开编译后的应用，通过 WebView2 检查旧配置导入、增删改、多选排序、进程启停、日志、设置及刷新恢复。它在 `.cache/desktop-smoke-*` 中创建独立配置、浏览器缓存和截图，仅启动测试命令，完成后退出测试实例。运行前需关闭其他 Tauri 版实例。
 
-仓库的 `.github/workflows/tauri.yml` 在 Windows 上执行前端测试、桌面构建、Rust 格式检查、Clippy 和 Rust 测试，并保存可执行文件。
 
 ## 项目结构与边界
 
