@@ -212,7 +212,7 @@ export default function App() {
       <div className="sidebar-bottom">
         <div className="workspace-status"><i className={'live-dot ' + (!runningCount ? 'paused' : '')} /><span>{runningCount ? runningCount + ' 个服务正在运行' : '工作空间已就绪'}</span></div>
         <button className="nav-item settings-nav" onClick={() => setSettingsOpen(true)} disabled={disabled}><Icon name="settings" /><span>启动器设置</span></button>
-        <div className="sidebar-footnote"><span>Local Hub <b>2.0</b></span><button className="icon-button" aria-label="退出 Local Hub" title="退出 Local Hub" disabled={!desktop || !!busy} onClick={() => void api.exit()}><Icon name="exit" size={16} /></button></div>
+        <div className="sidebar-footnote"><span>Local Hub <b>{snapshot.version}</b></span><button className="icon-button" aria-label="退出 Local Hub" title="退出 Local Hub" disabled={!desktop || !!busy} onClick={() => void api.exit()}><Icon name="exit" size={16} /></button></div>
       </div>
     </aside>
     <main className="workspace">
@@ -255,9 +255,9 @@ export default function App() {
       <span>{notice.message}</span><button className="icon-button" aria-label="关闭提示" onClick={() => setNotice(null)}><Icon name="close" size={15} /></button></div>}
     {dragging && <div className="drop-overlay"><div><Icon name="upload" size={40} /><h2>松开即可添加启动项</h2><p>支持程序、脚本和文件夹</p></div></div>}
     {menu && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
-    {editor && <ItemDialog key={editor.item.id} item={editor.item} editing={editor.editing} onSave={saveItem} onClose={finishEditor} />}
+    {editor && <ItemDialog key={editor.item.id} item={editor.item} editing={editor.editing} settings={snapshot.config.settings} onSave={saveItem} onClose={finishEditor} />}
     {settingsOpen && <SettingsDialog snapshot={snapshot} onClose={() => setSettingsOpen(false)} onOpenDirectory={() => openDirectory(null)}
-      onSave={async settings => { applySnapshot(await api.saveSettings(settings)); setSettingsOpen(false); notify({ level: 'success', message: '设置已保存' }); }} />}
+      onSave={async settings => { applySnapshot(await api.saveSettings(settings)); }} />}
     {confirmation && <Modal title={confirmation.title} onClose={() => setConfirmation(null)} busy={!!busy} className="confirmation-modal">
       <div className="confirmation-body"><div className="confirmation-icon"><Icon name="warning" size={26} /></div><p>{confirmation.message}</p></div>
       <footer className="modal-footer"><button className="button" disabled={!!busy} onClick={() => setConfirmation(null)}>取消</button>

@@ -1,7 +1,8 @@
 use crate::{
     app_state::{ActionResult, AppState, DroppedItems, ServiceAction, Snapshot},
     logs::LogPage,
-    model::{normalized_url, LaunchItem, LauncherSettings},
+    model::{normalized_url, LaunchItem, LauncherSettings, ProxySetting},
+    proxy::ProxyTestResult,
 };
 use std::sync::Arc;
 use tauri::{AppHandle, State};
@@ -68,6 +69,14 @@ pub async fn save_settings(
     settings: LauncherSettings,
 ) -> Result<Snapshot, String> {
     state.save_settings(settings).await
+}
+
+/// Uses the unsaved form values so a proxy can be verified before committing
+/// it to the config file.
+#[tauri::command]
+pub async fn test_proxy(site: String, proxy: ProxySetting) -> Result<ProxyTestResult, String> {
+    let plan = crate::proxy::resolve_plan(proxy.mode, &proxy.url, &proxy.no_proxy)?;
+    crate::proxy::test_site(&site, &plan).await
 }
 
 #[tauri::command]

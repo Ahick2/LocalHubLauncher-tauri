@@ -10,6 +10,7 @@ mod logs;
 mod model;
 mod native_process;
 mod process;
+mod proxy;
 
 pub fn run() {
     use std::sync::Arc;
@@ -32,6 +33,7 @@ pub fn run() {
             commands::set_auto_start,
             commands::reload_config,
             commands::save_settings,
+            commands::test_proxy,
             commands::get_logs,
             commands::clear_logs,
             commands::open_url,

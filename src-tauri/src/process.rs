@@ -5,6 +5,7 @@ use crate::{
     logs::{LogStore, LogStream},
     model::{now_ms, LaunchItem, ProcessState, RuntimeStatus},
     native_process::{NativeChild, OutputPipe},
+    proxy::ProxyPlan,
 };
 use parking_lot::{Mutex, RwLock};
 use std::{
@@ -85,10 +86,14 @@ impl ProcessManager {
         self.instances.lock().keys().copied().collect()
     }
 
-    pub async fn start(self: &Arc<Self>, item: &LaunchItem) -> Result<(), String> {
+    pub async fn start(
+        self: &Arc<Self>,
+        item: &LaunchItem,
+        proxy: &ProxyPlan,
+    ) -> Result<(), String> {
         let gate = self.gate(item.id);
         let _guard = gate.lock().await;
-        self.start_unlocked(item)
+        self.start_unlocked(item, proxy)
     }
 
     pub async fn stop(self: &Arc<Self>, id: Uuid) -> Result<(), String> {
@@ -97,14 +102,22 @@ impl ProcessManager {
         self.stop_unlocked(id).await
     }
 
-    pub async fn restart(self: &Arc<Self>, item: &LaunchItem) -> Result<(), String> {
+    pub async fn restart(
+        self: &Arc<Self>,
+        item: &LaunchItem,
+        proxy: &ProxyPlan,
+    ) -> Result<(), String> {
         let gate = self.gate(item.id);
         let _guard = gate.lock().await;
         self.stop_unlocked(item.id).await?;
-        self.start_unlocked(item)
+        self.start_unlocked(item, proxy)
     }
 
-    fn start_unlocked(self: &Arc<Self>, item: &LaunchItem) -> Result<(), String> {
+    fn start_unlocked(
+        self: &Arc<Self>,
+        item: &LaunchItem,
+        proxy: &ProxyPlan,
+    ) -> Result<(), String> {
         if self.is_running(item.id) {
             return Ok(());
         }
@@ -116,7 +129,7 @@ impl ProcessManager {
         self.logs.ensure(item.id, &item.name);
         self.notify();
         let result = (|| {
-            let spec = build_spec(item, &self.directory)?;
+            let spec = build_spec(item, &self.directory, proxy)?;
             let job = Arc::new(Job::new()?);
             let child = NativeChild::spawn(&spec, &job)?;
             Ok::<_, String>((job, child))
@@ -156,6 +169,10 @@ impl ProcessManager {
             format!("已启动，PID {}", child.pid),
             LogStream::System,
         );
+        if let Some(note) = &proxy.note {
+            self.logs
+                .append(item.id, &item.name, note.clone(), LogStream::System);
+        }
         if !item.hide_window {
             self.logs.append(
                 item.id,
@@ -394,7 +411,7 @@ async fn read_output(
 #[cfg(all(test, windows))]
 mod tests {
     use super::*;
-    use crate::model::LaunchType;
+    use crate::model::{LaunchType, LauncherSettings, ProxyMode};
 
     fn manager() -> (tempfile::TempDir, Arc<ProcessManager>, Arc<LogStore>) {
         let dir = tempfile::tempdir().unwrap();
@@ -418,7 +435,7 @@ mod tests {
         let (_dir, manager, logs) = manager();
         let mut item = LaunchItem::new("short", "for /L %i in (1,1,200) do @echo line-%i");
         item.launch_type = LaunchType::Command;
-        manager.start(&item).await.unwrap();
+        manager.start(&item, &ProxyPlan::default()).await.unwrap();
         wait_stopped(&manager, item.id).await;
         let records = logs.read(Some(item.id));
         assert_eq!(
@@ -432,16 +449,38 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_started_service_sees_the_proxy_environment() {
+        let (_dir, manager, logs) = manager();
+        let mut settings = LauncherSettings::default();
+        settings.proxy.mode = ProxyMode::Custom;
+        settings.proxy.url = "http://127.0.0.1:7890".into();
+        let mut item = LaunchItem::new("env", "echo %HTTP_PROXY%");
+        item.launch_type = LaunchType::Command;
+        let plan = crate::proxy::resolve(&item, &settings).unwrap();
+        manager.start(&item, &plan).await.unwrap();
+        wait_stopped(&manager, item.id).await;
+        let records = logs.read(Some(item.id));
+        assert!(
+            records
+                .iter()
+                .any(|record| matches!(record.stream, LogStream::Stdout)
+                    && record.text.contains("http://127.0.0.1:7890")),
+            "{records:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn concurrent_starts_are_serialized_and_restart_changes_generation() {
         let (_dir, manager, _logs) = manager();
         let mut item = LaunchItem::new("sleep", "Start-Sleep -Seconds 30");
         item.launch_type = LaunchType::WindowsPowerShell;
-        let (a, b) = tokio::join!(manager.start(&item), manager.start(&item));
+        let plan = ProxyPlan::default();
+        let (a, b) = tokio::join!(manager.start(&item, &plan), manager.start(&item, &plan));
         a.unwrap();
         b.unwrap();
         assert_eq!(manager.active_ids(), vec![item.id]);
         let generation = manager.statuses()[0].generation;
-        manager.restart(&item).await.unwrap();
+        manager.restart(&item, &ProxyPlan::default()).await.unwrap();
         assert!(manager.statuses()[0].generation > generation);
         assert!(manager.is_running(item.id));
         manager.stop(item.id).await.unwrap();
@@ -456,7 +495,7 @@ mod tests {
             r#"start "" /b powershell.exe -NoProfile -Command "Start-Sleep -Seconds 30""#,
         );
         item.launch_type = LaunchType::Command;
-        manager.start(&item).await.unwrap();
+        manager.start(&item, &ProxyPlan::default()).await.unwrap();
         tokio::time::timeout(Duration::from_secs(5), async {
             while manager.statuses()[0].pid.is_some() {
                 tokio::time::sleep(Duration::from_millis(20)).await;

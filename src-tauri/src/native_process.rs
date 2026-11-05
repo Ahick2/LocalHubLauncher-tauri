@@ -180,7 +180,7 @@ mod platform {
                 "命令超过 Windows 的 32767 字符限制",
             ));
         }
-        let mut environment = environment_block(&spec.environment);
+        let mut environment = environment_block(&spec.environment, &spec.unset_environment);
         let mut attributes = Attributes::new(if spec.hide_window { 2 } else { 1 })?;
         let job_handle = job.raw_handle();
         attributes.set(
@@ -297,10 +297,15 @@ mod platform {
         Ok((read, write))
     }
 
-    fn environment_block(extra: &[(String, String)]) -> Vec<u16> {
+    fn environment_block(extra: &[(String, String)], unset: &[String]) -> Vec<u16> {
         let mut variables = BTreeMap::new();
         for (key, value) in std::env::vars_os() {
             variables.insert(key.to_string_lossy().to_uppercase(), (key, value));
+        }
+        // Windows variable lookups ignore case, so removing by upper-cased name
+        // also drops an inherited `http_proxy` written in lower case.
+        for name in unset {
+            variables.remove(&name.to_uppercase());
         }
         for (key, value) in extra {
             variables.insert(key.to_uppercase(), (key.into(), value.into()));
@@ -357,6 +362,9 @@ mod platform {
                 .current_dir(&spec.directory)
                 .envs(spec.environment.clone())
                 .kill_on_drop(true);
+            for name in &spec.unset_environment {
+                command.env_remove(name);
+            }
             command.as_std_mut().process_group(0);
             if spec.hide_window {
                 command

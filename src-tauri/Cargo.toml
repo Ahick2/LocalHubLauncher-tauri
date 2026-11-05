@@ -1,6 +1,6 @@
 [package]
 name = "local-hub-launcher"
-version = "2.0.0"
+version = "2.1.0"
 description = "Portable local service supervisor"
 edition = "2021"
 rust-version = "1.88"

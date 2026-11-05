@@ -1,9 +1,11 @@
 @import url('./styles-dialogs.css');
 
 :root {
-  font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  /* Segoe UI Variable renders thin below 12px in WebView2; the classic stack
+     keeps small labels crisp and falls back cleanly for Chinese glyphs. */
+  font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
   color: #e5e8f1; background: #14171f; font-size: 13px; color-scheme: dark;
-  font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;
+  font-synthesis: none; text-rendering: auto;
   --bg: #14171f; --sidebar: #181b25; --surface: #1c202b; --raised: #242938;
   --border: #303646; --muted: #8993a9; --text: #e5e8f1; --accent: #9788ff;
   --green: #51cda0; --red: #f18c97;

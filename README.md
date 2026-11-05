@@ -9,6 +9,7 @@
 - 启动、停止、重启、依次自动启动；停止全部时取消待启动队列。
 - 支持可执行程序、批处理、Python、PowerShell 脚本，以及 cmd、PowerShell 7、Windows PowerShell、WSL、Git Bash 命令。
 - 后台捕获标准输出和错误流，支持中文、UTF-8 和带 BOM 的 UTF-16；日志可筛选、复制、清空、刷新和自动跟随。
+- 为每个启动项配置网络代理，支持 Windows 系统代理与自定义地址，并可单独指定直连例外；内置连通性测试。
 - 将文件或文件夹拖入窗口创建启动项；支持打开工作目录、服务网址和日志中的 HTTP / HTTPS 链接。
 - Windows 托盘、单实例、开机自启动、窗口位置记忆、关闭或最小化到托盘。
 
@@ -80,24 +81,18 @@ npm run desktop:dev
 
 勾选“后台运行并捕获日志”时隐藏终端并捕获输出；取消后使用独立终端，日志页仅显示启动、停止等管理事件。Python 后台输出启用 UTF-8 和无缓冲模式。
 
-## 验证
+## 网络代理
 
-```powershell
-npm run check
-npm test
-cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-npm run test:rust
-```
+每个启动项可以单独选择代理方式：跟随默认设置、不使用代理、Windows 系统代理或自定义地址。默认值在“启动器设置”中配置，修改后需要重启对应服务才会生效。
 
-已构建 Release 程序后，可运行真实桌面流程验证：
-
-```powershell
-npm run test:desktop
-```
-
-该脚本会打开编译后的应用，通过 WebView2 检查旧配置导入、增删改、多选排序、进程启停、日志、设置及刷新恢复。它在 `.cache/desktop-smoke-*` 中创建独立配置、浏览器缓存和截图，仅启动测试命令，完成后退出测试实例。运行前需关闭其他 Tauri 版实例。
-
+- 代理通过 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 和 `NO_PROXY` 环境变量传给子进程，Node.js、Python、npm、pip、Go、curl 与 git 都会读取。
+- `NO_PROXY` 始终包含 `localhost`、`127.0.0.1` 和 `::1`，本地服务之间互相调用不会经过代理。
+- 选择“不使用代理”时会清除从启动器所在终端继承的同名变量，避免父进程的代理设置渗入服务。
+- `socks5` 与 `socks5h` 只写入 `ALL_PROXY`，因为多数客户端不接受 `HTTP_PROXY` 中的 socks 协议。
+- Windows 系统代理读取 `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings`，只读不写。PAC 脚本无法转换为固定地址，遇到这种情况需要改用自定义代理。
+- 代理地址可以携带用户名和密码，这些凭据会出现在子进程的环境变量中，同一台机器上的其他程序可以读取。
+- “测试连接”按钮使用当前表单里尚未保存的代理设置访问测试网站，默认 `https://www.google.com`，可以直接改成内网地址。结果包含 HTTP 状态码与耗时，失败时显示 curl 的原始错误。
+- 连通性测试调用系统自带的 `curl.exe`，Windows 10 1803 及以上版本默认提供，不需要额外安装。
 
 ## 项目结构与边界
 

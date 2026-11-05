@@ -5,6 +5,7 @@ import type { LaunchItem, LogRecord, RuntimeStatus } from './types';
 const item = (id: string, name = id): LaunchItem => ({
   id, name, target: 'node server.js', category: '本地服务', arguments: '', workingDirectory: '',
   url: '', launchType: 'Auto', autoStart: false, hideWindow: true, enabled: true,
+  proxyMode: 'inherit', proxyUrl: '', noProxy: '',
 });
 const status = (itemId: string, pid: number): RuntimeStatus => ({
   itemId, pid, generation: 1, state: 'running', startedAt: 0, exitCode: null, requestedStop: false, error: null,

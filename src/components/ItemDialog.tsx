@@ -1,18 +1,30 @@
 import { useState, type FormEvent } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { desktop, errorMessage } from '../bridge';
-import { launchTypes, type LaunchItem } from '../types';
+import { launchTypes, type LaunchItem, type ProxyMode, type Settings } from '../types';
 import { Icon } from './Icon';
 import { Modal, Switch } from './Modal';
 
-export function ItemDialog({ item, editing, onSave, onClose }: {
-  item: LaunchItem; editing: boolean; onSave: (item: LaunchItem) => Promise<void>; onClose: () => void;
+export function ItemDialog({ item, editing, settings, onSave, onClose }: {
+  item: LaunchItem; editing: boolean; settings: Settings;
+  onSave: (item: LaunchItem) => Promise<void>; onClose: () => void;
 }) {
   const [draft, setDraft] = useState({ ...item });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const change = <K extends keyof LaunchItem>(key: K, value: LaunchItem[K]) => setDraft(previous => ({ ...previous, [key]: value }));
   const hint = launchTypes.find(type => type.value === draft.launchType)?.hint;
+  const proxyHint = draft.proxyMode === 'custom'
+    ? '支持 http、https、socks5；socks 仅通过 ALL_PROXY 提供，部分工具可能不支持。'
+    : draft.proxyMode === 'none'
+      ? '不设置代理变量，并清除从启动器继承的同名变量。'
+      : draft.proxyMode === 'system'
+        ? '读取 Windows 的 Internet 代理设置；未启用时按直连处理。'
+        : settings.proxy.mode === 'custom'
+          ? '跟随默认设置：' + (settings.proxy.url.trim() || '尚未填写代理地址')
+          : settings.proxy.mode === 'system'
+            ? '跟随默认设置：Windows 系统代理'
+            : '跟随默认设置：不使用代理';
 
   async function browse(directory = false) {
     try {
@@ -70,6 +82,23 @@ export function ItemDialog({ item, editing, onSave, onClose }: {
           </label>
           <label className="field">服务网址
             <input spellCheck={false} value={draft.url} placeholder="http://localhost:8000" onChange={event => change('url', event.target.value)} /></label>
+          <label className="field">网络代理
+            <select value={draft.proxyMode} onChange={event => change('proxyMode', event.target.value as ProxyMode)}>
+              <option value="inherit">跟随默认设置</option>
+              <option value="none">不使用代理</option>
+              <option value="system">Windows 系统代理</option>
+              <option value="custom">自定义代理</option>
+            </select><span className="field-hint">{proxyHint}</span>
+          </label>
+          {draft.proxyMode === 'custom' && <div className="proxy-fields">
+            <label className="field">代理地址
+              <input spellCheck={false} value={draft.proxyUrl} placeholder="http://127.0.0.1:7890"
+                onChange={event => change('proxyUrl', event.target.value)} /></label>
+            <label className="field">不走代理的地址
+              <input spellCheck={false} value={draft.noProxy} placeholder=".internal, 10.0.0.0/8"
+                onChange={event => change('noProxy', event.target.value)} />
+              <span className="field-hint">逗号或分号分隔，localhost 与 127.0.0.1 始终直连。</span></label>
+          </div>}
           <div className="item-options">
             <label><input type="checkbox" checked={draft.hideWindow} onChange={event => change('hideWindow', event.target.checked)} />后台运行并捕获日志</label>
             <label><input type="checkbox" checked={draft.autoStart} onChange={event => change('autoStart', event.target.checked)} />打开启动器后自动运行</label>

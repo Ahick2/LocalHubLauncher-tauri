@@ -51,6 +51,48 @@ impl<'de> Deserialize<'de> for LaunchType {
     }
 }
 
+/// `Inherit` only makes sense on a launch item: it defers to the global
+/// setting. A global setting that still carries `Inherit` is treated as `None`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ProxyMode {
+    #[default]
+    Inherit,
+    None,
+    System,
+    Custom,
+}
+
+fn default_test_url() -> String {
+    "https://www.google.com".into()
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProxySetting {
+    #[serde(default)]
+    pub mode: ProxyMode,
+    #[serde(default)]
+    pub url: String,
+    #[serde(default)]
+    pub no_proxy: String,
+    /// Site used by the "test connection" button. Kept in the config so a
+    /// corporate intranet address survives a restart.
+    #[serde(default = "default_test_url")]
+    pub test_url: String,
+}
+
+impl Default for ProxySetting {
+    fn default() -> Self {
+        Self {
+            mode: ProxyMode::None,
+            url: String::new(),
+            no_proxy: String::new(),
+            test_url: default_test_url(),
+        }
+    }
+}
+
 fn default_true() -> bool {
     true
 }
@@ -86,6 +128,12 @@ pub struct LaunchItem {
     pub hide_window: bool,
     #[serde(default = "default_true")]
     pub enabled: bool,
+    #[serde(default)]
+    pub proxy_mode: ProxyMode,
+    #[serde(default)]
+    pub proxy_url: String,
+    #[serde(default)]
+    pub no_proxy: String,
     #[serde(default, flatten)]
     pub extra: Extensions,
 }
@@ -104,6 +152,9 @@ impl LaunchItem {
             auto_start: false,
             hide_window: true,
             enabled: true,
+            proxy_mode: ProxyMode::Inherit,
+            proxy_url: String::new(),
+            no_proxy: String::new(),
             extra: Extensions::new(),
         }
     }
@@ -125,6 +176,8 @@ impl LaunchItem {
             ("启动参数", &self.arguments, 32767),
             ("工作目录", &self.working_directory, 32767),
             ("网址", &self.url, 8192),
+            ("代理地址", &self.proxy_url, 8192),
+            ("不走代理的地址", &self.no_proxy, 8192),
         ] {
             if value.contains('\0') || value.chars().count() > limit {
                 return Err(format!(
@@ -135,6 +188,9 @@ impl LaunchItem {
         }
         if !self.url.trim().is_empty() {
             normalized_url(&self.url)?;
+        }
+        if self.proxy_mode == ProxyMode::Custom {
+            validate_proxy_url(&self.proxy_url)?;
         }
         Ok(())
     }
@@ -155,6 +211,8 @@ pub struct LauncherSettings {
     pub confirm_before_stop_all: bool,
     #[serde(default = "default_interval")]
     pub auto_start_interval_ms: u32,
+    #[serde(default)]
+    pub proxy: ProxySetting,
     #[serde(default, flatten)]
     pub extra: Extensions,
 }
@@ -168,8 +226,30 @@ impl Default for LauncherSettings {
             close_to_tray: true,
             confirm_before_stop_all: true,
             auto_start_interval_ms: default_interval(),
+            proxy: ProxySetting::default(),
             extra: Extensions::new(),
         }
+    }
+}
+
+impl LauncherSettings {
+    pub fn validate(&self) -> Result<(), String> {
+        for (label, value) in [
+            ("代理地址", &self.proxy.url),
+            ("不走代理的地址", &self.proxy.no_proxy),
+            ("测试网站", &self.proxy.test_url),
+        ] {
+            if value.contains('\0') || value.chars().count() > 8192 {
+                return Err(format!("{label}包含空字符或超过长度限制"));
+            }
+        }
+        if self.proxy.mode == ProxyMode::Custom {
+            validate_proxy_url(&self.proxy.url)?;
+        }
+        if !self.proxy.test_url.trim().is_empty() {
+            validate_test_site(&self.proxy.test_url)?;
+        }
+        Ok(())
     }
 }
 
@@ -226,6 +306,7 @@ impl LauncherConfig {
         if self.settings.auto_start_interval_ms > 10000 {
             return Err("自动启动间隔必须在 0 到 10000 毫秒之间".into());
         }
+        self.settings.validate()?;
         let mut ids = HashSet::new();
         for item in &self.items {
             item.validate()?;
@@ -262,6 +343,63 @@ pub fn normalized_url(input: &str) -> Result<String, String> {
     let url = url::Url::parse(&value).map_err(|_| "请输入有效的 HTTP 或 HTTPS 网址".to_string())?;
     if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
         return Err("只允许打开 HTTP 或 HTTPS 网址".into());
+    }
+    Ok(url.into())
+}
+
+/// Proxy credentials are allowed: some corporate proxies need them, and
+/// `http://user:pass@host:port` is the form every client expects.
+pub fn validate_proxy_url(input: &str) -> Result<String, String> {
+    let input = input.trim();
+    if input.is_empty() {
+        return Err("请填写代理地址，例如 http://127.0.0.1:7890".into());
+    }
+    let value = if input.contains("://") {
+        input.to_owned()
+    } else {
+        format!("http://{input}")
+    };
+    let url = url::Url::parse(&value)
+        .map_err(|_| "请输入有效的代理地址，例如 http://127.0.0.1:7890".to_string())?;
+    if !matches!(url.scheme(), "http" | "https" | "socks5" | "socks5h") {
+        return Err("代理协议只支持 http、https、socks5 或 socks5h".into());
+    }
+    if url.host_str().is_none() {
+        return Err("代理地址缺少主机名".into());
+    }
+    // HTTP URLs normalize to a "/" path; non-special schemes such as socks5
+    // keep an empty path. Both are valid, anything else is a real path.
+    if !matches!(url.path(), "" | "/") || url.query().is_some() || url.fragment().is_some() {
+        return Err("代理地址只填写协议、主机和端口，不要包含路径或参数".into());
+    }
+    // `Url` serializes a special scheme with a trailing slash; proxy clients
+    // compare these strings, so hand back the canonical short form.
+    let mut normalized = url.to_string();
+    if normalized.ends_with('/') {
+        normalized.pop();
+    }
+    Ok(normalized)
+}
+
+/// The test site defaults to HTTPS: a bare host is assumed to be reachable over
+/// TLS, unlike `normalized_url`, which assumes plain HTTP for shortcut links.
+pub fn validate_test_site(input: &str) -> Result<String, String> {
+    let input = input.trim();
+    if input.is_empty() {
+        return Err("请填写测试网站地址，例如 https://www.google.com".into());
+    }
+    let value = if input.contains("://") {
+        input.to_owned()
+    } else {
+        format!("https://{input}")
+    };
+    let url = url::Url::parse(&value)
+        .map_err(|_| "请输入有效的测试网站地址，例如 https://www.google.com".to_string())?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err("测试网站只支持 HTTP 或 HTTPS 地址".into());
+    }
+    if url.host_str().is_none() {
+        return Err("测试网站地址缺少主机名".into());
     }
     Ok(url.into())
 }

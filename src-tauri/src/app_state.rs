@@ -5,6 +5,7 @@ use crate::{
     logs::{LogStore, LogTab},
     model::{LaunchItem, LauncherConfig, LauncherSettings, RuntimeStatus, WindowBounds},
     process::ProcessManager,
+    proxy,
 };
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -277,9 +278,17 @@ impl AppState {
                 ServiceAction::Restart if !item.enabled && !self.processes.is_running(id) => {
                     Err("此启动项已禁用".into())
                 }
-                ServiceAction::Start => self.processes.start(item).await,
+                // Only start and restart need a proxy plan: stopping a running
+                // service must stay possible even when its proxy entry is bad.
+                ServiceAction::Start => match proxy::resolve(item, &config.settings) {
+                    Ok(plan) => self.processes.start(item, &plan).await,
+                    Err(error) => Err(format!("代理设置无效：{error}")),
+                },
                 ServiceAction::Stop => self.processes.stop(id).await,
-                ServiceAction::Restart => self.processes.restart(item).await,
+                ServiceAction::Restart => match proxy::resolve(item, &config.settings) {
+                    Ok(plan) => self.processes.restart(item, &plan).await,
+                    Err(error) => Err(format!("代理设置无效：{error}")),
+                },
             };
             if let Err(error) = result {
                 failures.push(ActionFailure {
@@ -496,7 +505,11 @@ impl AppState {
                         .iter()
                         .find(|item| item.id == *id && item.enabled && item.auto_start)
                     {
-                        if let Err(error) = state.processes.start(item).await {
+                        let result = match proxy::resolve(item, &config.settings) {
+                            Ok(plan) => state.processes.start(item, &plan).await,
+                            Err(error) => Err(format!("代理设置无效：{error}")),
+                        };
+                        if let Err(error) = result {
                             state
                                 .notice("error", format!("「{}」自动启动失败：{error}", item.name));
                         }

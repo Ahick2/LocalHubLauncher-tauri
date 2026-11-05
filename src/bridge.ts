@@ -1,6 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import type { ActionResult, DroppedItems, LaunchItem, LogBatch, LogPage, Notice, ServiceAction, Settings, Snapshot } from './types';
+import type { ActionResult, DroppedItems, LaunchItem, LogBatch, LogPage, Notice, ProxySetting, ProxyTestResult, ServiceAction, Settings, Snapshot } from './types';
 
 export const desktop = isTauri();
 export const api = {
@@ -13,6 +13,7 @@ export const api = {
   setAutoStart: (ids: string[], enabled: boolean) => invoke<Snapshot>('set_auto_start', { ids, enabled }),
   reload: () => invoke<Snapshot>('reload_config'),
   saveSettings: (settings: Settings) => invoke<Snapshot>('save_settings', { settings }),
+  testProxy: (site: string, proxy: ProxySetting) => invoke<ProxyTestResult>('test_proxy', { site, proxy }),
   logs: (id: string | null) => invoke<LogPage>('get_logs', { id }),
   clearLogs: (id: string | null) => invoke<LogPage>('clear_logs', { id }),
   openUrl: (url: string) => invoke<void>('open_url', { url }),

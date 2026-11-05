@@ -3,6 +3,22 @@ export type LaunchType = 'Auto' | 'Executable' | 'Batch' | 'PowerShell' | 'Pytho
 export type ProcessState = 'stopped' | 'starting' | 'running' | 'stopping';
 export type View = 'all' | 'running' | 'auto' | 'logs';
 export type ServiceAction = 'start' | 'stop' | 'restart';
+export type ProxyMode = 'inherit' | 'none' | 'system' | 'custom';
+
+export interface ProxySetting {
+  mode: ProxyMode;
+  url: string;
+  noProxy: string;
+  testUrl: string;
+}
+
+export interface ProxyTestResult {
+  ok: boolean;
+  status: number;
+  elapsedMs: number;
+  effectiveProxy: string | null;
+  message: string;
+}
 
 export interface LaunchItem {
   id: string;
@@ -16,6 +32,9 @@ export interface LaunchItem {
   autoStart: boolean;
   hideWindow: boolean;
   enabled: boolean;
+  proxyMode: ProxyMode;
+  proxyUrl: string;
+  noProxy: string;
   [extension: string]: unknown;
 }
 
@@ -26,6 +45,7 @@ export interface Settings {
   closeToTray: boolean;
   confirmBeforeStopAll: boolean;
   autoStartIntervalMs: number;
+  proxy: ProxySetting;
   [extension: string]: unknown;
 }
 
@@ -90,16 +110,20 @@ export const launchTypes: { value: LaunchType; label: string; hint: string }[] =
   { value: 'GitBash', label: '单命令 · Git Bash', hint: '使用 Git for Windows 中的 bash 执行命令。' },
 ];
 
+export const defaultTestUrl = 'https://www.google.com';
+
 export const emptySnapshot: Snapshot = {
   revision: 0, config: { version: 2, items: [], settings: {
     startWithWindows: false, startMinimizedToTray: false, minimizeToTray: true,
     closeToTray: true, confirmBeforeStopAll: true, autoStartIntervalMs: 800,
+    proxy: { mode: 'none', url: '', noProxy: '', testUrl: defaultTestUrl },
   } }, statuses: [], logTabs: [], configPath: '', loadError: null,
-  autoStartRegistered: false, autoStarting: false, platform: 'windows', version: '2.0.0',
+  autoStartRegistered: false, autoStarting: false, platform: 'windows', version: '2.1.0',
 };
 
 export function newItem(autoStart = false): LaunchItem {
   return { id: crypto.randomUUID(), name: '', category: '本地服务', target: '',
     arguments: '', workingDirectory: '', url: '', launchType: 'Auto',
-    autoStart, hideWindow: true, enabled: true };
+    autoStart, hideWindow: true, enabled: true,
+    proxyMode: 'inherit', proxyUrl: '', noProxy: '' };
 }

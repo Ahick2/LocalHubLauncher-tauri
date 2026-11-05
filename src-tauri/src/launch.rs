@@ -1,4 +1,7 @@
-use crate::model::{LaunchItem, LaunchType};
+use crate::{
+    model::{LaunchItem, LaunchType},
+    proxy::ProxyPlan,
+};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use std::{
     env,
@@ -13,10 +16,18 @@ pub struct LaunchSpec {
     pub raw_args: Option<String>,
     pub directory: PathBuf,
     pub environment: Vec<(String, String)>,
+    /// Keys removed from the inherited environment before `environment` is
+    /// applied. Used to keep a direct service direct even when the launcher
+    /// itself was started from a shell that exports proxy variables.
+    pub unset_environment: Vec<String>,
     pub hide_window: bool,
 }
 
-pub fn build_spec(item: &LaunchItem, application_directory: &Path) -> Result<LaunchSpec, String> {
+pub fn build_spec(
+    item: &LaunchItem,
+    application_directory: &Path,
+    proxy: &ProxyPlan,
+) -> Result<LaunchSpec, String> {
     item.validate()?;
     let kind = resolve_type(item.launch_type, &item.target, application_directory);
     let is_script = matches!(
@@ -45,6 +56,7 @@ pub fn build_spec(item: &LaunchItem, application_directory: &Path) -> Result<Lau
         raw_args: None,
         directory,
         environment: Vec::new(),
+        unset_environment: proxy.unset.clone(),
         hide_window: item.hide_window,
     };
     // Redirected Python is otherwise block-buffered even with UTF-8 enabled.
@@ -142,6 +154,8 @@ pub fn build_spec(item: &LaunchItem, application_directory: &Path) -> Result<Lau
             spec.args = vec!["-lc".into(), command_text(item)];
         }
     }
+    // Applied last so a proxy value always wins over a variable set above.
+    spec.environment.extend(proxy.set.iter().cloned());
     Ok(spec)
 }
 
@@ -404,6 +418,24 @@ pub fn split_windows_arguments(input: &str) -> Result<Vec<String>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::{LauncherSettings, ProxyMode};
+
+    #[test]
+    fn the_proxy_plan_reaches_the_launch_environment() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut settings = LauncherSettings::default();
+        settings.proxy.mode = ProxyMode::Custom;
+        settings.proxy.url = "http://127.0.0.1:7890".into();
+        let mut item = LaunchItem::new("demo", "echo hello");
+        item.launch_type = LaunchType::Command;
+        let plan = crate::proxy::resolve(&item, &settings).unwrap();
+        let spec = build_spec(&item, directory.path(), &plan).unwrap();
+        assert!(spec
+            .environment
+            .iter()
+            .any(|(key, value)| key == "HTTP_PROXY" && value == "http://127.0.0.1:7890"));
+        assert!(spec.unset_environment.iter().any(|key| key == "HTTP_PROXY"));
+    }
 
     #[test]
     fn does_not_infer_script_type_from_a_command_argument() {
@@ -474,7 +506,7 @@ mod tests {
         } else {
             LaunchType::WindowsPowerShell
         };
-        let spec = build_spec(&item, directory.path()).unwrap();
+        let spec = build_spec(&item, directory.path(), &ProxyPlan::default()).unwrap();
         let output = std::process::Command::new(spec.program)
             .args(spec.args)
             .current_dir(spec.directory)
@@ -504,7 +536,7 @@ mod tests {
             "Write-Error 'failure 中文'; Write-Output 'still running'",
         );
         item.launch_type = LaunchType::WindowsPowerShell;
-        let spec = build_spec(&item, directory.path()).unwrap();
+        let spec = build_spec(&item, directory.path(), &ProxyPlan::default()).unwrap();
         let output = std::process::Command::new(spec.program)
             .args(spec.args)
             .envs(spec.environment)
