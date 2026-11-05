@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api, desktop, errorMessage } from '../bridge';
 import { formatLog } from '../state';
 import type { LogRecord, Notice, ServiceAction, Snapshot } from '../types';
@@ -7,6 +7,17 @@ import { ContextMenu, type MenuState } from './ContextMenu';
 import { Icon } from './Icon';
 
 const ROW_HEIGHT = 24;
+const WRAP_STORAGE_KEY = 'localhub.logs.wrap';
+
+// 自动换行默认开启；读取失败时不阻塞日志页渲染。
+function readWrapPreference() {
+  try {
+    const saved = window.localStorage.getItem(WRAP_STORAGE_KEY);
+    return saved === null ? true : saved === 'true';
+  } catch {
+    return true;
+  }
+}
 
 function LogText({ text, onLink }: { text: string; onLink: (url: string) => void }) {
   return <>{text.split(/(https?:\/\/[^\s<>"']+)/g).map((part, index) => /^https?:\/\//.test(part)
@@ -15,12 +26,24 @@ function LogText({ text, onLink }: { text: string; onLink: (url: string) => void
     }}>{part}</a> : <span key={index}>{part}</span>)}</>;
 }
 
+// 换行模式不使用虚拟滚动，历史行需要保持引用稳定，避免每批新日志触发全量重渲染。
+const LogRow = memo(function LogRow({ record, showService, top, onLink }: {
+  record: LogRecord; showService: boolean; top: number | null; onLink: (url: string) => void;
+}) {
+  return <div className={'log-row ' + record.stream} style={top === null ? undefined : { top }}>
+    <span className="log-time">{new Date(record.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}</span>
+    {showService && <span className="log-service">[{record.itemName}] </span>}
+    <span className="log-message"><LogText text={record.text} onLink={onLink} /></span>
+  </div>;
+});
+
 export function LogView({ snapshot, activeId, onSelect, onAction, notify }: {
   snapshot: Snapshot; activeId: string | null; onSelect: (id: string | null) => void;
   onAction: (ids: string[], action: ServiceAction) => void; notify: (notice: Notice) => void;
 }) {
   const { entries, loading, reload, clear } = useLogs(activeId, notify);
   const [search, setSearch] = useState('');
+  const [wrap, setWrap] = useState(readWrapPreference);
   const [errorsOnly, setErrorsOnly] = useState(false);
   const [following, setFollowing] = useState(true);
   const followingRef = useRef(true);
@@ -43,10 +66,13 @@ export function LogView({ snapshot, activeId, onSelect, onAction, notify }: {
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+  useEffect(() => {
+    try { window.localStorage.setItem(WRAP_STORAGE_KEY, String(wrap)); } catch { /* 存储不可用时仅本次生效 */ }
+  }, [wrap]);
   useEffect(() => { followingRef.current = true; setFollowing(true); setAllSelected(false); }, [activeId]);
   useLayoutEffect(() => {
     if (followingRef.current && viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight;
-  }, [filtered, height]);
+  }, [filtered, height, wrap]);
 
   const copy = async (text: string) => {
     if (!text) return;
@@ -54,7 +80,9 @@ export function LogView({ snapshot, activeId, onSelect, onAction, notify }: {
     catch (error) { notify({ level: 'error', message: '复制失败：' + errorMessage(error) }); }
   };
   const textOf = (records: LogRecord[]) => records.map(record => formatLog(record, activeId === null)).join('\n');
-  const openLink = (url: string) => { void api.openUrl(url).catch(error => notify({ level: 'error', message: errorMessage(error) })); };
+  const openLink = useCallback((url: string) => {
+    void api.openUrl(url).catch(error => notify({ level: 'error', message: errorMessage(error) }));
+  }, [notify]);
   const toggleFollowing = () => {
     followingRef.current = !followingRef.current; setFollowing(followingRef.current);
     if (followingRef.current && viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight;
@@ -91,6 +119,8 @@ export function LogView({ snapshot, activeId, onSelect, onAction, notify }: {
       <label className="error-filter"><input type="checkbox" checked={errorsOnly} onChange={event => setErrorsOnly(event.target.checked)} />仅错误</label>
       <div className="log-tools">
         <button className={'button compact ' + (following ? 'subtle-active' : '')} onClick={toggleFollowing}><Icon name="down" size={14} />{following ? '自动跟随' : '恢复跟随'}</button>
+        <button className={'button compact ' + (wrap ? 'subtle-active' : '')} onClick={() => setWrap(previous => !previous)}
+          title={wrap ? '关闭自动换行' : '开启自动换行'} aria-pressed={wrap}><Icon name="wrap" size={14} />自动换行</button>
         <button className="icon-button" title="刷新日志" aria-label="刷新日志" onClick={() => void reload()} disabled={loading || !desktop}><Icon name="refresh" size={17} /></button>
         <button className="icon-button" title="复制全部日志" aria-label="复制全部日志" onClick={() => void copy(textOf(entries))} disabled={!entries.length}><Icon name="copy" size={17} /></button>
         <button className="icon-button" title="清空当前日志" aria-label="清空当前日志" onClick={() => void clear()} disabled={loading || !entries.length}><Icon name="trash" size={17} /></button>
@@ -100,7 +130,7 @@ export function LogView({ snapshot, activeId, onSelect, onAction, notify }: {
       onPointerDown={() => setAllSelected(false)}
       onScroll={event => {
         const element = event.currentTarget;
-        setScrollTop(element.scrollTop);
+        if (!wrap) setScrollTop(element.scrollTop);
         const atBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 32;
         followingRef.current = atBottom; setFollowing(atBottom);
       }}
@@ -111,12 +141,10 @@ export function LogView({ snapshot, activeId, onSelect, onAction, notify }: {
       onContextMenu={event => { event.preventDefault(); logContext(event.clientX, event.clientY); }}>
       {filtered.length === 0 ? <div className="empty-logs"><Icon name="terminal" size={32} /><h3>{loading ? '正在读取日志…' : entries.length ? '没有匹配的日志' : '等待服务输出'}</h3>
         <p>{entries.length ? '调整关键词或错误筛选条件。' : '启动服务后，输出会实时出现在这里。'}</p></div> :
-        <div className="log-canvas" style={{ height: filtered.length * ROW_HEIGHT }}>
-          {filtered.slice(start, end).map((record, offset) => <div className={'log-row ' + record.stream} key={record.sequence} style={{ top: (start + offset) * ROW_HEIGHT }}>
-            <span className="log-time">{new Date(record.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}</span>
-            {activeId === null && <span className="log-service">[{record.itemName}] </span>}
-            <span className="log-message"><LogText text={record.text} onLink={openLink} /></span>
-          </div>)}
+        <div className={'log-canvas' + (wrap ? ' wrapped' : '')} style={wrap ? undefined : { height: filtered.length * ROW_HEIGHT }}>
+          {(wrap ? filtered : filtered.slice(start, end)).map((record, offset) =>
+            <LogRow key={record.sequence} record={record} showService={activeId === null}
+              top={wrap ? null : (start + offset) * ROW_HEIGHT} onLink={openLink} />)}
         </div>}
     </div>
     <footer className="log-footer"><span><i className={'live-dot ' + (following ? '' : 'paused')} />{following ? '实时输出' : '已暂停跟随'}<span className="footer-divider">/</span>{filtered.length} 行</span>

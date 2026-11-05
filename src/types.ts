@@ -119,7 +119,7 @@ export const emptySnapshot: Snapshot = {
     closeToTray: true, confirmBeforeStopAll: true, autoStartIntervalMs: 800,
     proxy: { mode: 'none', url: '', noProxy: defaultNoProxy, testUrl: defaultTestUrl },
   } }, statuses: [], logTabs: [], configPath: '', loadError: null,
-  autoStartRegistered: false, autoStarting: false, platform: 'windows', version: '2.1.0',
+  autoStartRegistered: false, autoStarting: false, platform: 'windows', version: '2.1.1',
 };
 
 export function newItem(autoStart = false): LaunchItem {

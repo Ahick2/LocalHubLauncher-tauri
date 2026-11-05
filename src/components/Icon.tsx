@@ -27,6 +27,7 @@ const paths = {
   exit: 'M9 4H4v16h5 M10 12h11 m-5-5 5 5-5 5',
   server: 'M3 3h18v7H3z M3 14h18v7H3z M7 6.5h.01 M7 17.5h.01',
   upload: 'M12 16V3 m-5 5 5-5 5 5 M4 16v5h16v-5',
+  wrap: 'M4 5h16 M4 11h12a3 3 0 0 1 0 6H4 M4 20h8',
 } as const;
 
 export type IconName = keyof typeof paths;

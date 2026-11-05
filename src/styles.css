@@ -150,6 +150,10 @@ kbd { font-family: inherit; font-size: 9px; color: #7f8a9e; border: 1px solid #3
 .log-canvas { position: relative; min-width: 100%; }
 .log-row { position: absolute; left: 0; min-width: 100%; width: max-content; height: 24px; line-height: 24px; padding: 0 16px; white-space: pre; font: 11px/24px "Cascadia Mono", Consolas, "Microsoft YaHei UI", monospace; color: #c5cddd; }
 .log-row:hover { background: #b0bff705; } .log-row.stderr { color: #ed97a8; } .log-row.system { color: #889cb8; }
+.log-canvas.wrapped .log-row { position: static; width: auto; height: auto; min-height: 24px; padding: 3px 16px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; display: flex; align-items: flex-start; }
+.log-canvas.wrapped .log-time { flex: 0 0 72px; }
+.log-canvas.wrapped .log-service { flex: 0 0 auto; }
+.log-canvas.wrapped .log-message { flex: 1 1 auto; min-width: 0; }
 .log-time { font-size: 10px; color: #576984; display: inline-block; width: 72px; user-select: text; }
 .log-service { color: #a594d9; } .log-message a { color: #b2a2ff; text-decoration: underline; text-decoration-color: #b2a2ff50; text-underline-offset: 3px; }
 .all-selected .log-row { background: #66549380; }
