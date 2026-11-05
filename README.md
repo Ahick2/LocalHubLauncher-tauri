@@ -86,7 +86,7 @@ npm run desktop:dev
 每个启动项可以单独选择代理方式：跟随默认设置、不使用代理、Windows 系统代理或自定义地址。默认值在“启动器设置”中配置，修改后需要重启对应服务才会生效。
 
 - 代理通过 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 和 `NO_PROXY` 环境变量传给子进程，Node.js、Python、npm、pip、Go、curl 与 git 都会读取。
-- `NO_PROXY` 始终包含 `localhost`、`127.0.0.1` 和 `::1`，本地服务之间互相调用不会经过代理。
+- `NO_PROXY` 完全由“不走代理的地址”决定，默认填入 `localhost`、`127.0.0.1` 和 `::1`；删除这些条目后，本地地址也会经过代理，留空则表示所有地址都走代理。
 - 选择“不使用代理”时会清除从启动器所在终端继承的同名变量，避免父进程的代理设置渗入服务。
 - `socks5` 与 `socks5h` 只写入 `ALL_PROXY`，因为多数客户端不接受 `HTTP_PROXY` 中的 socks 协议。
 - Windows 系统代理读取 `HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings`，只读不写。PAC 脚本无法转换为固定地址，遇到这种情况需要改用自定义代理。

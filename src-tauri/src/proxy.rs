@@ -14,13 +14,14 @@ use std::{
 /// for Node, Python, Go, curl and git.
 const PROXY_VARIABLES: [&str; 4] = ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"];
 
-/// Loopback must never leave the machine, even when a proxy is configured.
-const BASE_BYPASS: [&str; 3] = ["localhost", "127.0.0.1", "::1"];
-
 /// The environment a child process should receive, plus the keys to remove
 /// from the inherited block. Removal matters: a launcher started from a shell
 /// that already exports `HTTP_PROXY` would otherwise leak it into services
 /// that were explicitly marked as direct.
+///
+/// The bypass list is entirely driven by configuration. Nothing is injected
+/// implicitly, so leaving it empty sends every host, loopback included,
+/// through the proxy.
 #[derive(Clone, Debug, Default)]
 pub struct ProxyPlan {
     pub set: Vec<(String, String)>,
@@ -91,10 +92,7 @@ pub fn resolve_plan(mode: ProxyMode, url: &str, no_proxy: &str) -> Result<ProxyP
         ProxyMode::Inherit => unreachable!(),
     };
 
-    let mut bypass: Vec<String> = BASE_BYPASS
-        .iter()
-        .map(|value| (*value).to_owned())
-        .collect();
+    let mut bypass: Vec<String> = Vec::new();
     for source in [source_bypass.as_str(), no_proxy] {
         for part in source.split([',', ';']) {
             let part = part.trim();
@@ -126,7 +124,11 @@ pub fn resolve_plan(mode: ProxyMode, url: &str, no_proxy: &str) -> Result<ProxyP
         format!("已通过{source_label}注入 {proxy_url}")
     };
     plan.note = Some(note);
-    plan.set.push(("NO_PROXY".to_owned(), bypass.join(",")));
+    if !bypass.is_empty() {
+        plan.set.push(("NO_PROXY".to_owned(), bypass.join(",")));
+    }
+    // An empty list leaves `NO_PROXY` in `plan.unset`, so a value inherited
+    // from the launcher's own terminal cannot silently reintroduce bypasses.
     Ok(plan)
 }
 
@@ -349,14 +351,25 @@ mod tests {
     }
 
     #[test]
-    fn custom_proxy_keeps_loopback_out_of_the_proxy() {
-        let plan = resolve(&item(ProxyMode::Inherit, "", ""), &custom("127.0.0.1:7890")).unwrap();
+    fn the_default_bypass_list_keeps_loopback_out_of_the_proxy() {
+        let settings = custom("127.0.0.1:7890");
+        assert_eq!(settings.proxy.no_proxy, crate::model::DEFAULT_NO_PROXY);
+        let plan = resolve(&item(ProxyMode::Inherit, "", ""), &settings).unwrap();
         assert_eq!(value(&plan, "HTTP_PROXY"), Some("http://127.0.0.1:7890"));
         assert_eq!(value(&plan, "HTTPS_PROXY"), Some("http://127.0.0.1:7890"));
         let bypass = value(&plan, "NO_PROXY").unwrap();
         assert!(bypass.contains("localhost"), "{bypass}");
         assert!(bypass.contains("127.0.0.1"), "{bypass}");
         assert!(bypass.contains("::1"), "{bypass}");
+    }
+
+    #[test]
+    fn an_empty_bypass_list_sends_everything_through_the_proxy() {
+        let mut settings = custom("http://127.0.0.1:7890");
+        settings.proxy.no_proxy.clear();
+        let plan = resolve(&item(ProxyMode::Inherit, "", ""), &settings).unwrap();
+        assert_eq!(value(&plan, "NO_PROXY"), None);
+        assert!(plan.unset.iter().any(|name| name == "NO_PROXY"));
     }
 
     #[test]

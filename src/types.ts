@@ -111,12 +111,13 @@ export const launchTypes: { value: LaunchType; label: string; hint: string }[] =
 ];
 
 export const defaultTestUrl = 'https://www.google.com';
+export const defaultNoProxy = 'localhost,127.0.0.1,::1';
 
 export const emptySnapshot: Snapshot = {
   revision: 0, config: { version: 2, items: [], settings: {
     startWithWindows: false, startMinimizedToTray: false, minimizeToTray: true,
     closeToTray: true, confirmBeforeStopAll: true, autoStartIntervalMs: 800,
-    proxy: { mode: 'none', url: '', noProxy: '', testUrl: defaultTestUrl },
+    proxy: { mode: 'none', url: '', noProxy: defaultNoProxy, testUrl: defaultTestUrl },
   } }, statuses: [], logTabs: [], configPath: '', loadError: null,
   autoStartRegistered: false, autoStarting: false, platform: 'windows', version: '2.1.0',
 };
@@ -125,5 +126,5 @@ export function newItem(autoStart = false): LaunchItem {
   return { id: crypto.randomUUID(), name: '', category: '本地服务', target: '',
     arguments: '', workingDirectory: '', url: '', launchType: 'Auto',
     autoStart, hideWindow: true, enabled: true,
-    proxyMode: 'inherit', proxyUrl: '', noProxy: '' };
+    proxyMode: 'inherit', proxyUrl: '', noProxy: defaultNoProxy };
 }

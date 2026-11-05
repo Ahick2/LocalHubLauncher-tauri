@@ -99,7 +99,7 @@ export function SettingsDialog({ snapshot, onSave, onClose, onOpenDirectory }: {
                 <label className="setting-control"><input spellCheck={false} value={draft.proxy.url} disabled={busy}
                   placeholder="http://127.0.0.1:7890" onChange={event => changeProxy('url', event.target.value)} /></label>
               </div>
-              <div className="setting-row"><div><strong>不走代理的地址</strong><p>逗号或分号分隔，localhost 始终直连</p></div>
+              <div className="setting-row"><div><strong>不走代理的地址</strong><p>逗号或分号分隔，留空表示全部走代理</p></div>
                 <label className="setting-control"><input spellCheck={false} value={draft.proxy.noProxy} disabled={busy}
                   placeholder=".internal, 10.0.0.0/8" onChange={event => changeProxy('noProxy', event.target.value)} /></label>
               </div>

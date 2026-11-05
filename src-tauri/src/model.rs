@@ -67,6 +67,15 @@ fn default_test_url() -> String {
     "https://www.google.com".into()
 }
 
+/// Loopback addresses are offered as a normal, editable bypass entry instead of
+/// being forced into `NO_PROXY`. Clearing the field sends loopback traffic
+/// through the proxy as well.
+pub const DEFAULT_NO_PROXY: &str = "localhost,127.0.0.1,::1";
+
+fn default_no_proxy() -> String {
+    DEFAULT_NO_PROXY.into()
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProxySetting {
@@ -74,7 +83,7 @@ pub struct ProxySetting {
     pub mode: ProxyMode,
     #[serde(default)]
     pub url: String,
-    #[serde(default)]
+    #[serde(default = "default_no_proxy")]
     pub no_proxy: String,
     /// Site used by the "test connection" button. Kept in the config so a
     /// corporate intranet address survives a restart.
@@ -87,7 +96,7 @@ impl Default for ProxySetting {
         Self {
             mode: ProxyMode::None,
             url: String::new(),
-            no_proxy: String::new(),
+            no_proxy: default_no_proxy(),
             test_url: default_test_url(),
         }
     }
@@ -132,7 +141,7 @@ pub struct LaunchItem {
     pub proxy_mode: ProxyMode,
     #[serde(default)]
     pub proxy_url: String,
-    #[serde(default)]
+    #[serde(default = "default_no_proxy")]
     pub no_proxy: String,
     #[serde(default, flatten)]
     pub extra: Extensions,
@@ -154,7 +163,7 @@ impl LaunchItem {
             enabled: true,
             proxy_mode: ProxyMode::Inherit,
             proxy_url: String::new(),
-            no_proxy: String::new(),
+            no_proxy: default_no_proxy(),
             extra: Extensions::new(),
         }
     }

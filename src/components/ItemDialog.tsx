@@ -97,7 +97,7 @@ export function ItemDialog({ item, editing, settings, onSave, onClose }: {
             <label className="field">不走代理的地址
               <input spellCheck={false} value={draft.noProxy} placeholder=".internal, 10.0.0.0/8"
                 onChange={event => change('noProxy', event.target.value)} />
-              <span className="field-hint">逗号或分号分隔，localhost 与 127.0.0.1 始终直连。</span></label>
+              <span className="field-hint">逗号或分号分隔，留空表示全部走代理。</span></label>
           </div>}
           <div className="item-options">
             <label><input type="checkbox" checked={draft.hideWindow} onChange={event => change('hideWindow', event.target.checked)} />后台运行并捕获日志</label>
